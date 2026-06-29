@@ -1,6 +1,6 @@
 """
 King Bot - Keyboards
-All inline and reply keyboards
+All inline and reply keyboards (aiogram 3.x / pydantic 2.x compatible)
 """
 
 from aiogram.types import (
@@ -11,135 +11,154 @@ from aiogram.types import (
 
 # ========== Main Menu ==========
 def main_menu():
-    kb = ReplyKeyboardMarkup(
+    return ReplyKeyboardMarkup(
         resize_keyboard=True,
         keyboard=[
             [
-                KeyboardButton("📱 أرقام وهمية"),
-                KeyboardButton("� رشق وتفا�ل"),
+                KeyboardButton(text="📱 أرقام وهمية"),
+                KeyboardButton(text="👥 رشق وتفاعل"),
             ],
             [
-                KeyboardButton("💰 شحن الرصيد"),
-                KeyboardButton("📊 حسابي"),
+                KeyboardButton(text="💰 شحن الرصيد"),
+                KeyboardButton(text="� حسابي"),
             ],
             [
-                KeyboardButton("📢 قناة البوت"),
-                KeyboardButton("📞 تواصل مع المطور"),
+                KeyboardButton(text="📢 قناة البوت"),
+                KeyboardButton(text="📞 تواصل مع المطور"),
             ],
         ]
     )
-    return kb
 
 
 # ========== Virtual Numbers ==========
 def numbers_menu():
-    kb = InlineKeyboardMarkup(row_width=1)
-    kb.add(InlineKeyboardButton("💎 الفئة الأولى ($10)", callback_data="num_tier1"))
-    kb.add(InlineKeyboardButton("🥈 الفئة الثانية ($7)", callback_data="num_tier2"))
-    kb.add(InlineKeyboardButton("🥉 الفئة الثالثة ($5)", callback_data="num_tier3"))
-    kb.add(InlineKeyboardButton("📱 أرقامي (الأرقام المشتراة)", callback_data="my_numbers"))
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
-    return kb
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💎 الفئة الأولى ($10)", callback_data="num_tier1")],
+            [InlineKeyboardButton(text="🥈 الفئة الثانية ($7)", callback_data="num_tier2")],
+            [InlineKeyboardButton(text="� الفئة الثالثة ($5)", callback_data="num_tier3")],
+            [InlineKeyboardButton(text="📱 أرقامي (الأرقام المشتراة)", callback_data="my_numbers")],
+            [InlineKeyboardButton(text="� رجوع", callback_data="back_main")],
+        ]
+    )
 
 
 def countries_menu(tier: str):
     from utils.fivesim import COUNTRIES
-    kb = InlineKeyboardMarkup(row_width=2)
     countries = COUNTRIES[tier]["countries"]
-    buttons = []
-    for code, name in countries.items():
-        buttons.append(InlineKeyboardButton(name, callback_data=f"buy_{code}_{tier}"))
-    kb.add(*buttons)
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_numbers"))
-    return kb
+    rows = []
+    items = list(countries.items())
+    for i in range(0, len(items), 2):
+        row = []
+        for code, name in items[i:i+2]:
+            row.append(InlineKeyboardButton(text=name, callback_data=f"buy_{code}_{tier}"))
+        rows.append(row)
+    rows.append([InlineKeyboardButton(text="🔙 رجوع", callback_data="back_numbers")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def number_actions_kb(order_id: int):
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton("📩 استقبال الكود", callback_data=f"check_sms_{order_id}"),
-        InlineKeyboardButton("❌ إلغاء واسترداد", callback_data=f"cancel_num_{order_id}")
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📩 استقبال الكود", callback_data=f"check_sms_{order_id}"),
+                InlineKeyboardButton(text="❌ إلغاء واسترداد", callback_data=f"cancel_num_{order_id}"),
+            ],
+            [InlineKeyboardButton(text="🔙 رجوع", callback_data="back_numbers")],
+        ]
     )
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_numbers"))
-    return kb
 
 
 def my_numbers_kb(numbers: list):
-    kb = InlineKeyboardMarkup(row_width=1)
+    rows = []
     for num in numbers:
         status = "✅" if num["status"] == "active" else "❌"
-        kb.add(InlineKeyboardButton(
-            f"{status} {num['phone_number']} - {num['country_name']}",
-            callback_data=f"num_detail_{num['id']}"
-        ))
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_numbers"))
-    return kb
+        rows.append([
+            InlineKeyboardButton(
+                text=f"{status} {num['phone_number']} - {num['country_name']}",
+                callback_data=f"num_detail_{num['id']}"
+            )
+        ])
+    rows.append([InlineKeyboardButton(text="� رجوع", callback_data="back_numbers")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 # ========== Boost Menu ==========
 def boost_menu():
-    kb = InlineKeyboardMarkup(row_width=1)
-    kb.add(InlineKeyboardButton("🎯 اكسب نقاط (مجاني)", callback_data="earn_points"))
-    kb.add(InlineKeyboardButton("👥 رشق متابعين (-10 نقاط)", callback_data="boost_followers"))
-    kb.add(InlineKeyboardButton("❤️ رشق إعجابات (-5 نقاط)", callback_data="boost_likes"))
-    kb.add(InlineKeyboardButton("👁 رشق مشاهدات (-3 نقاط)", callback_data="boost_views"))
-    kb.add(InlineKeyboardButton("📋 طلباتي", callback_data="my_boosts"))
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
-    return kb
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="� اكسب نقاط (مجاني)", callback_data="earn_points")],
+            [InlineKeyboardButton(text="👥 رشق متابعين (-10 نقاط)", callback_data="boost_followers")],
+            [InlineKeyboardButton(text="❤️ رشق إعجابات (-5 نقاط)", callback_data="boost_likes")],
+            [InlineKeyboardButton(text="� رشق مشاهدات (-3 نقاط)", callback_data="boost_views")],
+            [InlineKeyboardButton(text="📋 طلباتي", callback_data="my_boosts")],
+            [InlineKeyboardButton(text="🔙 رجوع", callback_data="back_main")],
+        ]
+    )
 
 
 def earn_points_menu():
-    kb = InlineKeyboardMarkup(row_width=1)
-    kb.add(InlineKeyboardButton("❤️ إعجاب بمنشور (+1 نقطة)", callback_data="task_like"))
-    kb.add(InlineKeyboardButton("📢 اشتراك في قناة (+2 نقطة)", callback_data="task_subscribe"))
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_boost"))
-    return kb
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="❤️ إعجاب بمنشور (+1 نقطة)", callback_data="task_like")],
+            [InlineKeyboardButton(text="� اشتراك في قناة (+2 نقطة)", callback_data="task_subscribe")],
+            [InlineKeyboardButton(text="🔙 رجوع", callback_data="back_boost")],
+        ]
+    )
 
 
 def boost_confirm_kb(boost_type: str, target: str):
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton("✅ تأكيد", callback_data=f"confirm_{boost_type}"),
-        InlineKeyboardButton("❌ إلغاء", callback_data="back_boost")
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ تأكيد", callback_data=f"confirm_{boost_type}"),
+                InlineKeyboardButton(text="❌ إلغاء", callback_data="back_boost"),
+            ],
+        ]
     )
-    return kb
 
 
 # ========== Balance Menu ==========
 def balance_menu():
-    kb = InlineKeyboardMarkup(row_width=1)
-    kb.add(InlineKeyboardButton("💳 عنوان المحفظة (USDT TRC20)", callback_data="show_wallet"))
-    kb.add(InlineKeyboardButton("✅ تأكيد الدفع", callback_data="confirm_deposit"))
-    kb.add(InlineKeyboardButton("💰 سجل العمليات", callback_data="balance_history"))
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
-    return kb
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="� عنوان المحفظة (USDT TRC20)", callback_data="show_wallet")],
+            [InlineKeyboardButton(text="✅ تأكيد الدفع", callback_data="confirm_deposit")],
+            [InlineKeyboardButton(text="💰 سجل العمليات", callback_data="balance_history")],
+            [InlineKeyboardButton(text="🔙 رجوع", callback_data="back_main")],
+        ]
+    )
 
 
 # ========== Admin Panel ==========
 def admin_menu():
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton("📊 الإحصائيات", callback_data="admin_stats"),
-        InlineKeyboardButton("👥 المستخدمين", callback_data="admin_users"),
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="� الإحصائيات", callback_data="admin_stats"),
+                InlineKeyboardButton(text="� المستخدمين", callback_data="admin_users"),
+            ],
+            [
+                InlineKeyboardButton(text="📢 إذاعة", callback_data="admin_broadcast"),
+                InlineKeyboardButton(text="📋 الطلبات", callback_data="admin_orders"),
+            ],
+            [
+                InlineKeyboardButton(text="➕ إضافة نقاط", callback_data="admin_add_points"),
+                InlineKeyboardButton(text="➕ إضافة رصيد", callback_data="admin_add_balance"),
+            ],
+            [
+                InlineKeyboardButton(text="📝 المهام المعلقة", callback_data="admin_tasks"),
+                InlineKeyboardButton(text="� إغلاق", callback_data="admin_close"),
+            ],
+        ]
     )
-    kb.add(
-        InlineKeyboardButton("📢 إذاعة", callback_data="admin_broadcast"),
-        InlineKeyboardButton("📋 الطلبات", callback_data="admin_orders"),
-    )
-    kb.add(
-        InlineKeyboardButton("➕ إضافة نقاط", callback_data="admin_add_points"),
-        InlineKeyboardButton("➕ إضافة رصيد", callback_data="admin_add_balance"),
-    )
-    kb.add(
-        InlineKeyboardButton("📝 المهام المعلقة", callback_data="admin_tasks"),
-        InlineKeyboardButton("🔙 إغلاق", callback_data="admin_close"),
-    )
-    return kb
 
 
 # ========== Contact ==========
 def contact_menu():
-    kb = InlineKeyboardMarkup(row_width=1)
-    kb.add(InlineKeyboardButton("💬 تيليجرام", callback_data="contact_telegram"))
-    kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
-    return kb
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 تيليجرام", callback_data="contact_telegram")],
+            [InlineKeyboardButton(text="🔙 رجوع", callback_data="back_main")],
+        ]
+    )
