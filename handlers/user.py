@@ -370,10 +370,10 @@ async def process_deposit(message: Message, state: FSMContext):
 @router.message(F.text.endswith("حسابي"))
 async def profile_handler(message: Message):
     user_id = message.from_user.id
-    full_name = message.from_user.full_name or "—"
-    
+    user_name = message.from_user.full_name or "—"
+
     try:
-        register_user(user_id, message.from_user.username or "", full_name)
+        register_user(user_id, message.from_user.username or "", user_name)
         from utils.database import get_user
         user_data = get_user(user_id)
         if user_data:
@@ -382,23 +382,22 @@ async def profile_handler(message: Message):
         else:
             points = 0
             balance = 0.0
-        
-        text = (
-            f"📊 <b>ملفك الشخصي</b>\n\n"
-            f"👤 الاسم: {full_name}\n"
-            f"� ID: <code>{user_id}</code>\n"
-            f"🎯 النقاط: {points} نقطة\n"
-            f"💰 الرصيد: ${balance:.2f}"
+
+        await message.answer(
+            f"👑 مرحباً بك في كينغ بوت\n\n"
+            f"� الا�م: {user_name}\n"
+            f"🆔 المعرف: {user_id}\n"
+            f"💰 الرصيد: ${balance:.2f}\n"
+            f"🚀 النقاط: {points}"
         )
-        await message.answer(text, parse_mode="HTML")
     except Exception as e:
         await message.answer(
-            "� معلومات حساب كينغ بوت:\n\n"
-            "💰 الرصيد الحالي: $0.00\n"
-            "🚀 النقاط الحالية: 0\n"
-            "🆔 المعرف الخاص بك: المالك"
+            f"� مرحباً بك في كينغ بوت\n\n"
+            f"👤 الاسم: {user_name}\n"
+            f"� المعرف: {user_id}\n"
+            f"💰 الرصيد: $0.00\n"
+            f"� النقاط: 0"
         )
-
 
 # ========== Contact ==========
 @router.message(F.text.endswith("تواصل مع المطور"))
