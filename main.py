@@ -44,13 +44,7 @@ async def health(request: web.Request) -> web.Response:
 # ── Startup ───────────────────────────────────────────────────────
 async def on_startup(app: web.Application) -> None:
     """Init DB + set Telegram webhook."""
-    logger.info("on_startup – ensuring data directory exists …")
-    
-    # 1. Create data directory if it doesn't exist
-    os.makedirs("data", exist_ok=True)
-    logger.info("on_startup – data directory OK")
-    
-    # 2. Initialize database
+    # 1. Initialize database
     logger.info("on_startup – initialising DB …")
     try:
         init_db()
