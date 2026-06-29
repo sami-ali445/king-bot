@@ -52,7 +52,7 @@ async def cmd_start(message: Message):
 
 
 # ========== Virtual Numbers ==========
-@router.message(F.text == "📱 أرقام وهمية")
+@router.message(F.text.endswith("أرقام وهمية"))
 async def numbers_main(message: Message):
     balance = get_5sim_balance()
     balance_text = f"💰 رصيد 5sim: ${balance:.2f}" if balance else "💰 رصيد 5sim: —"
@@ -172,7 +172,7 @@ async def my_numbers_handler(callback: CallbackQuery):
 
 
 # ========== Boost Section ==========
-@router.message(F.text == "👥 رشق وتفاعل")
+@router.message(F.text.endswith("رشق وتفا�ل"))
 async def boost_main(message: Message):
     points = get_points(message.from_user.id)
     await message.answer(
@@ -302,7 +302,7 @@ async def process_boost_target(message: Message, state: FSMContext):
 
 
 # ========== Balance Section ==========
-@router.message(F.text == "💰 شحن الرصيد")
+@router.message(F.text.endswith("شحن الرصيد"))
 async def balance_main(message: Message):
     balance = get_balance(message.from_user.id)
     await message.answer(
@@ -367,7 +367,7 @@ async def process_deposit(message: Message, state: FSMContext):
 
 
 # ========== Profile ==========
-@router.message(F.text == "� حسابي")
+@router.message(F.text.endswith("حسابي"))
 async def profile_handler(message: Message):
     user_id = message.from_user.id
     full_name = message.from_user.full_name or "—"
@@ -391,18 +391,17 @@ async def profile_handler(message: Message):
             f"💰 الرصيد: ${balance:.2f}"
         )
         await message.answer(text, parse_mode="HTML")
-    except Exception:
+    except Exception as e:
         await message.answer(
-            f"👤 معلومات الحساب:\n\n"
-            f"� الا�م: {full_name}\n"
-            f"💰 الرصيد الحالي: $0.00\n"
-            f"🚀 النقاط الحالية: 0\n"
-            f"� المعرف الخاص بك: المالك"
+            "� معلومات حساب كينغ بوت:\n\n"
+            "💰 الرصيد الحالي: $0.00\n"
+            "🚀 النقاط الحالية: 0\n"
+            "🆔 المعرف الخاص بك: المالك"
         )
 
 
 # ========== Contact ==========
-@router.message(F.text == "📞 تواصل مع المطور")
+@router.message(F.text.endswith("تواصل مع المطور"))
 async def contact_handler(message: Message):
     await message.answer(
         f"📞 <b>تواصل مع المطور:</b>\n\n"
@@ -412,7 +411,7 @@ async def contact_handler(message: Message):
 
 
 # ========== Channel Button ==========
-@router.message(F.text == "📢 قناة البوت")
+@router.message(F.text.endswith("قناة البوت"))
 async def channel_handler(message: Message):
     await message.answer(
         f"📢 <b>قناة البوت الرسمية:</b>\n\n"
