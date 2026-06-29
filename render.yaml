@@ -3,9 +3,20 @@ services:
     name: king-bot
     runtime: python
     plan: free
+    region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     healthCheckPath: /api/health
     envVars:
-      - key: NODE_ENV
-        value: production
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: BOT_TOKEN
+        sync: false
+      - key: FIVE_SIM_API_KEY
+        sync: false
+      - key: ADMIN_IDS
+        value: "8916948567,555666777"
+      - key: WEBHOOK_SECRET
+        generateString: true
+      - key: WALLET_ADDRESS
+        value: "TLhmbZbsvRhf2TpGiotkHnbv7YBfxbKprn"
