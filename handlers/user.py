@@ -370,12 +370,13 @@ async def process_deposit(message: Message, state: FSMContext):
 @router.message(F.text == "📊 حسابي")
 async def profile_handler(message: Message):
     user_id = message.from_user.id
-    try:
-        register_user(user_id, message.from_user.username or "", message.from_user.full_name or "")
-        from utils.database import get_points, get_balance
-        points = get_points(user_id)
-        balance = get_balance(user_id)
-    except Exception:
+    register_user(user_id, message.from_user.username or "", message.from_user.full_name or "")
+    from utils.database import get_user
+    user_data = get_user(user_id)
+    if user_data:
+        points = user_data.get("points", 0)
+        balance = user_data.get("balance", 0.0)
+    else:
         points = 0
         balance = 0.0
 
