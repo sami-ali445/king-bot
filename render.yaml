@@ -1,12 +1,11 @@
 services:
-  - type: web
+  - type: worker
     name: king-bot
     runtime: python
     plan: free
     region: oregon
     buildCommand: pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
     startCommand: python main.py
-    healthCheckPath: api/health
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
@@ -17,6 +16,6 @@ services:
       - key: ADMIN_IDS
         value: "8916948567,555666777"
       - key: WEBHOOK_SECRET
-        generateString: true
+        value: "king_bot_2026_secure_webhook_token_xyz789"
       - key: WALLET_ADDRESS
         value: "TLhmbZbsvRhf2TpGiotkHnbv7YBfxbKprn"
