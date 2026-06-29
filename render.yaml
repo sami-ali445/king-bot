@@ -9,7 +9,7 @@ services:
     healthCheckPath: api/health
     envVars:
       - key: PYTHON_VERSION
-        value: "3.11"
+        value: "3.11.9"
       - key: BOT_TOKEN
         sync: false
       - key: FIVE_SIM_API_KEY
