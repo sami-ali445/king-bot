@@ -29,6 +29,6 @@ DB_PATH = "data/bot.db"
 WEBHOOK_PATH = "/webhook/kingbot"
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "king_bot_2026_secure_webhook_token_xyz789")
 
-# Server
+# Server (Render injects PORT dynamically)
 SERVER_HOST = "0.0.0.0"
-SERVER_PORT = os.getenv("PORT", "10000")
+SERVER_PORT = int(os.getenv("PORT", "10000"))
