@@ -23,7 +23,7 @@ WALLET_NETWORK = "TRC20"
 WALLET_COIN = "USDT"
 
 # Database
-DB_PATH = "/tmp/bot.db"
+DB_PATH = "/tmp/king_bot_new.db"
 
 # Webhook
 WEBHOOK_PATH = "/webhook/kingbot"
