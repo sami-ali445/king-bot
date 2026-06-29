@@ -11,18 +11,22 @@ from aiogram.types import (
 
 # ========== Main Menu ==========
 def main_menu():
-    kb = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    kb.add(
-        KeyboardButton("📱 أرقام وهمية"),
-        KeyboardButton("👥 رشق وتفاعل"),
-    )
-    kb.add(
-        KeyboardButton("💰 شحن الرصيد"),
-        KeyboardButton("📊 حسابي"),
-    )
-    kb.add(
-        KeyboardButton("📢 قناة البوت"),
-        KeyboardButton("📞 تواصل مع المطور"),
+    kb = ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        keyboard=[
+            [
+                KeyboardButton("📱 أرقام وهمية"),
+                KeyboardButton("� رشق وتفا�ل"),
+            ],
+            [
+                KeyboardButton("💰 شحن الرصيد"),
+                KeyboardButton("📊 حسابي"),
+            ],
+            [
+                KeyboardButton("📢 قناة البوت"),
+                KeyboardButton("📞 تواصل مع المطور"),
+            ],
+        ]
     )
     return kb
 
