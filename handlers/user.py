@@ -369,25 +369,33 @@ async def process_deposit(message: Message, state: FSMContext):
 # ========== Profile ==========
 @router.message(F.text == "📊 حسابي")
 async def profile_handler(message: Message):
-    user_id = message.from_user.id
-    register_user(user_id, message.from_user.username or "", message.from_user.full_name or "")
-    from utils.database import get_user
-    user_data = get_user(user_id)
-    if user_data:
-        points = user_data.get("points", 0)
-        balance = user_data.get("balance", 0.0)
-    else:
-        points = 0
-        balance = 0.0
+    try:
+        user_id = message.from_user.id
+        register_user(user_id, message.from_user.username or "", message.from_user.full_name or "")
+        from utils.database import get_user
+        user_data = get_user(user_id)
+        if user_data:
+            points = user_data.get("points", 0)
+            balance = user_data.get("balance", 0.0)
+        else:
+            points = 0
+            balance = 0.0
 
-    await message.answer(
-        f"📊 <b>ملفك الشخصي</b>\n\n"
-        f"👤 الاسم: {message.from_user.full_name or '—'}\n"
-        f"🆔 ID: <code>{user_id}</code>\n"
-        f"� النقاط: {points} نقطة\n"
-        f"💰 الرصيد: ${balance:.2f}",
-        parse_mode="HTML"
-    )
+        await message.answer(
+            f"� <b>ملفك الشخصي</b>\n\n"
+            f"� الا�م: {message.from_user.full_name or '—'}\n"
+            f"� ID: <code>{user_id}</code>\n"
+            f"🎯 النقاط: {points} نقطة\n"
+            f"💰 الرصيد: ${balance:.2f}",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await message.answer(
+            "👤 معلومات الحساب:\n\n"
+            "💰 الرصيد الحالي: $0.00\n"
+            "� النقاط الحالية: 0\n"
+            f"🆔الخاص بك: {message.from_user.id}"
+        )
 
 
 # ========== Contact ==========
