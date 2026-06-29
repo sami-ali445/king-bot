@@ -369,30 +369,21 @@ async def process_deposit(message: Message, state: FSMContext):
 # ========== Profile ==========
 @router.message(F.text == "📊 حسابي")
 async def profile_handler(message: Message):
-    user = register_user(
-        message.from_user.id,
-        message.from_user.username or "",
-        message.from_user.full_name or ""
-    )
-    # Get fresh data
-    from utils.database import get_db
-    from config import DB_PATH
-    conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE user_id = ?", (message.from_user.id,)).fetchone()
-    conn.close()
+    user_id = message.from_user.id
+    register_user(user_id, message.from_user.username or "", message.from_user.full_name or "")
 
-    if row:
-        await message.answer(
-            f"📊 <b>ملفك الشخصي</b>\n\n"
-            f"👤 الاسم: {message.from_user.full_name or '—'}\n"
-            f"🆔 ID: <code>{message.from_user.id}</code>\n"
-            f"🎯 النقاط: {row['points']} نقطة\n"
-            f"💰 الرصيد: ${row['balance']:.2f}\n"
-            f"📅 تاريخ الانضمام: {row['joined_at'][:10] if row['joined_at'] else '—'}",
-            parse_mode="HTML"
-        )
-    else:
-        await message.answer("❌ حدث خطأ، حاول مرة أخرى.")
+    from utils.database import get_points, get_balance
+    points = get_points(user_id)
+    balance = get_balance(user_id)
+
+    await message.answer(
+        f"📊 <b>ملفك الشخصي</b>\n\n"
+        f"👤 الاسم: {message.from_user.full_name or '—'}\n"
+        f"� ID: <code>{user_id}</code>\n"
+        f"🎯 النقاط: {points} نقطة\n"
+        f"💰 الرصيد: ${balance:.2f}",
+        parse_mode="HTML"
+    )
 
 
 # ========== Contact ==========
