@@ -367,7 +367,7 @@ async def process_deposit(message: Message, state: FSMContext):
 
 
 # ========== Profile ==========
-@router.message(F.text == "📊 حسابي")
+@router.message(F.text == "� حسابي")
 async def profile_handler(message: Message):
     try:
         user_id = message.from_user.id
@@ -382,19 +382,19 @@ async def profile_handler(message: Message):
             balance = 0.0
 
         await message.answer(
-            f"� <b>ملفك الشخصي</b>\n\n"
+            f"📊 <b>ملفك الشخصي</b>\n\n"
             f"� الا�م: {message.from_user.full_name or '—'}\n"
             f"� ID: <code>{user_id}</code>\n"
-            f"🎯 النقاط: {points} نقطة\n"
+            f"� النقاط: {points} نقطة\n"
             f"💰 الرصيد: ${balance:.2f}",
             parse_mode="HTML"
         )
     except Exception as e:
         await message.answer(
-            "👤 معلومات الحساب:\n\n"
+            "� معلومات الحساب:\n\n"
             "💰 الرصيد الحالي: $0.00\n"
-            "� النقاط الحالية: 0\n"
-            f"🆔الخاص بك: {message.from_user.id}"
+            "🚀 النقاط الحالية: 0\n"
+            "🆔 المعرف الخاص بك: المالك"
         )
 
 
