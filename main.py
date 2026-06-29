@@ -5,14 +5,11 @@ Webhook mode for Render Web Service (free tier)
 
 import logging
 import os
-import json
 from aiohttp import web
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from aiogram.types import Update
-
 from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_SECRET, ADMIN_IDS, SERVER_HOST, SERVER_PORT
 from handlers.user import router as user_router
 from handlers.admin import router as admin_router
@@ -49,14 +46,13 @@ async def telegram_webhook(request: web.Request) -> web.Response:
         return web.Response(status=403)
 
     try:
-        body = await request.read()
-        json_data = json.loads(body)
-        update = Update(**json_data)
+        json_data = await request.json()
+        from aiogram.types import Update
+        update = Update.model_validate(json_data)
         await dp.feed_webhook_update(bot, update)
     except Exception as e:
         logger.error(f"Webhook processing error: {e}")
-        # Still return 200 to prevent Telegram retries
-    return web.Response(status=200)
+        return web.Response(status=200)
 
 
 # ── Startup ───────────────────────────────────────────────────────
