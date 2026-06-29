@@ -1,134 +1,104 @@
 """
-King Bot - Main Entry Point
-Webhook mode for Render Web Service (free tier)
+King Bot - Main Entry Point (Webhook)
+Compatible with: aiogram 3.12, pydantic 2.x, Render free web service
 """
 
 import logging
 import os
 from aiohttp import web
-
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_SECRET, ADMIN_IDS, SERVER_HOST, SERVER_PORT
+
+from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_SECRET, SERVER_HOST, SERVER_PORT
 from handlers.user import router as user_router
 from handlers.admin import router as admin_router
 from models import init_db
 
-# ── Logging ──────────────────────────────────────────────────────
+
+# === Logging ===
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# ── Bot & Dispatcher ──────────────────────────────────────────────
-bot = Bot(
-    token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-)
+
+# === Bot / Dispatcher ===
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 dp.include_router(user_router)
 dp.include_router(admin_router)
 
 
-# ── Handlers ──────────────────────────────────────────────────────
-async def health(request: web.Request) -> web.Response:
-    return web.json_response({"status": "ok", "bot": "King Bot"})
+# === Health endpoints ===
+async def handle_health(request):
+    return web.json_response({"status": "ok"})
 
 
-async def telegram_webhook(request: web.Request) -> web.Response:
-    """Handle incoming Telegram updates via webhook."""
-    # Verify secret token
-    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-    if secret != WEBHOOK_SECRET:
-        logger.warning("Webhook: invalid secret token received")
+# === Webhook endpoint (handles ALL updates from Telegram) ===
+async def handle_webhook(request):
+    """Receive Telegram update, validate secret, feed to dispatcher."""
+    # 1. Validate secret token
+    incoming_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if incoming_secret != WEBHOOK_SECRET:
+        logger.warning("Rejected webhook: bad secret")
         return web.Response(status=403)
 
+    # 2. Parse JSON body into aiogram Update and feed to dispatcher
     try:
-        json_data = await request.json()
+        body = await request.json()
         from aiogram.types import Update
-        update = Update.model_validate(json_data)
+        update = Update.model_validate(body)
         await dp.feed_webhook_update(bot, update)
-    except Exception as e:
-        logger.error(f"Webhook processing error: {e}")
-        return web.Response(status=200)
+    except Exception as exc:
+        logger.error("Webhook exception: %s", exc)
+
+    # Always 200 so Telegram doesn't retry
+    return web.Response(text="ok", status=200)
 
 
-# ── Startup ───────────────────────────────────────────────────────
-async def on_startup(app: web.Application) -> None:
-    """Init DB + set Telegram webhook."""
-    # 1. Initialize database (/tmp/bot.db on Render)
-    logger.info("on_startup – initialising DB …")
-    try:
-        init_db()
-        logger.info("on_startup – DB initialised OK")
-    except Exception as e:
-        logger.error(f"on_startup – DB init error: {e}")
+# === Lifecycle ===
+async def startup(app):
+    init_db()
+    logger.info("DB ready")
 
-    # 2. Set Telegram webhook
     render_url = os.getenv("RENDER_EXTERNAL_URL", "")
     if render_url:
-        public_url = f"{render_url}{WEBHOOK_PATH}"
+        webhook_url = render_url + WEBHOOK_PATH
     else:
-        port = int(SERVER_PORT) if isinstance(SERVER_PORT, str) else SERVER_PORT
-        public_url = f"http://localhost:{port}{WEBHOOK_PATH}"
+        webhook_url = "http://localhost:" + str(SERVER_PORT) + WEBHOOK_PATH
 
-    logger.info("on_startup – setting webhook to %s", public_url)
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
-        await bot.set_webhook(
-            url=public_url,
-            secret_token=WEBHOOK_SECRET,
-            allowed_updates=["message", "callback_query"],
-        )
-        logger.info("on_startup – webhook set OK ✅")
-    except Exception as e:
-        logger.error(f"on_startup – webhook error: {e}")
+        await bot.set_webhook(url=webhook_url, secret_token=WEBHOOK_SECRET)
+        logger.info("Webhook set: %s", webhook_url)
+    except Exception as exc:
+        logger.error("set_webhook failed: %s", exc)
 
 
-async def on_shutdown(app: web.Application) -> None:
-    logger.info("on_shutdown – closing …")
+async def shutdown(app):
     try:
         await bot.session.close()
     except Exception:
         pass
 
 
-# ── App factory ───────────────────────────────────────────────────
-def create_app() -> web.Application:
-    """Build the aiohttp application."""
+# === aiohttp app ===
+def build_app():
     app = web.Application()
-
-    # Health check routes
-    app.router.add_get("/", health)
-    app.router.add_get("/api/health", health)
-
-    # Telegram webhook endpoint
-    app.router.add_post(WEBHOOK_PATH, telegram_webhook)
-
-    # Lifecycle
-    app.on_startup.append(on_startup)
-    app.on_shutdown.append(on_shutdown)
-
+    app.router.add_get("/", handle_health)
+    app.router.add_get("/api/health", handle_health)
+    app.router.add_post(WEBHOOK_PATH, handle_webhook)
+    app.on_startup.append(startup)
+    app.on_shutdown.append(shutdown)
     return app
 
 
-# ── Entry point ───────────────────────────────────────────────────
-def main() -> None:
-    """Entry point for render startCommand: python main.py"""
-    app = create_app()
-
+# === Entry ===
+def main():
     port = int(SERVER_PORT) if isinstance(SERVER_PORT, str) else SERVER_PORT
-
-    logger.info("Starting King Bot – Webhook Server on %s:%d", SERVER_HOST, port)
-
-    web.run_app(
-        app,
-        host=SERVER_HOST,
-        port=port,
-        print=logger.info,
-    )
+    logger.info("King Bot starting on %s:%d", SERVER_HOST, port)
+    web.run_app(build_app(), host=SERVER_HOST, port=port)
 
 
 if __name__ == "__main__":
