@@ -7,8 +7,6 @@ Runs an aiohttp server that handles both Telegram webhooks and health checks.
 import logging
 import asyncio
 import os
-import signal
-import sys
 from aiohttp import web
 
 from aiogram import Bot, Dispatcher
@@ -46,30 +44,49 @@ async def health(request: web.Request) -> web.Response:
 # ── Startup ───────────────────────────────────────────────────────
 async def on_startup(app: web.Application) -> None:
     """Init DB + set Telegram webhook."""
+    logger.info("on_startup – ensuring data directory exists …")
+    
+    # 1. Create data directory if it doesn't exist
+    os.makedirs("data", exist_ok=True)
+    logger.info("on_startup – data directory OK")
+    
+    # 2. Initialize database
     logger.info("on_startup – initialising DB …")
-    init_db()
-
-    # Determine public URL
+    try:
+        init_db()
+        logger.info("on_startup – DB initialised OK")
+    except Exception as e:
+        logger.error(f"on_startup – DB init error: {e}")
+        # Don't crash — let the server run even if DB has issues
+    
+    # 3. Set Telegram webhook
     render_url = os.getenv("RENDER_EXTERNAL_URL", "")
     if render_url:
         public_url = f"{render_url}{WEBHOOK_PATH}"
     else:
         port = int(SERVER_PORT) if isinstance(SERVER_PORT, str) else SERVER_PORT
         public_url = f"http://localhost:{port}{WEBHOOK_PATH}"
-
+    
     logger.info("on_startup – setting webhook to %s", public_url)
-    await bot.delete_webhook(drop_pending_updates=True)
-    await bot.set_webhook(
-        url=public_url,
-        secret_token=WEBHOOK_SECRET,
-        allowed_updates=["message", "callback_query"],
-    )
-    logger.info("on_startup – done ✅")
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        await bot.set_webhook(
+            url=public_url,
+            secret_token=WEBHOOK_SECRET,
+            allowed_updates=["message", "callback_query"],
+        )
+        logger.info("on_startup – webhook set OK ✅")
+    except Exception as e:
+        logger.error(f"on_startup – webhook error: {e}")
+        # Don't crash — server will still run for health checks
 
 
 async def on_shutdown(app: web.Application) -> None:
     logger.info("on_shutdown – closing …")
-    await bot.session.close()
+    try:
+        await bot.session.close()
+    except Exception:
+        pass
 
 
 # ── App factory ───────────────────────────────────────────────────
