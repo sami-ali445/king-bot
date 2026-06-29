@@ -1,10 +1,11 @@
 """
 King Bot - Main Entry Point
-Webhook + Polling with protection
+Webhook mode for Render Web Service (free tier)
 """
 
 import logging
 import asyncio
+import os
 from aiohttp import web
 
 from aiogram import Bot, Dispatcher
@@ -29,65 +30,83 @@ dp.include_router(user_router)
 dp.include_router(admin_router)
 
 
-async def on_startup():
+async def on_startup(app: web.Application):
+    """Initialize DB and set webhook on startup"""
     init_db()
-    logger.info("King Bot started!")
-
-
-async def webhook_handler(request: web.Request):
-    """Handle incoming webhook updates from Telegram"""
-    try:
-        secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-        if secret != WEBHOOK_SECRET:
-            return web.Response(status=403, text="Forbidden")
-
-        update = await request.json()
-        await dp.feed_update(bot, bot.bot)
-        return web.Response(status=200, text='{"ok":true}')
-    except Exception as e:
-        logger.error(f"Webhook error: {e}")
-        return web.Response(status=500, text="Error")
-
-
-async def health_handler(request: web.Request):
-    """Health check endpoint"""
-    return web.json_response({"status": "ok", "bot": "King Bot"})
-
-
-async def on_start(app: web.Application):
-    """Set webhook on startup"""
-    webhook_url = f"https://{request.host}{WEBHOOK_PATH}" if hasattr(request, 'host') else None
+    
+    # Determine the Render external URL
+    render_url = os.getenv("RENDER_EXTERNAL_URL", "")
+    if render_url:
+        webhook_url = f"{render_url}{WEBHOOK_PATH}"
+    else:
+        # Fallback for local testing
+        webhook_url = f"http://localhost:{SERVER_PORT}{WEBHOOK_PATH}"
+    
+    await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_webhook(
-        url=webhook_url or f"https://king-bot.onrender.com{WEBHOOK_PATH}",
+        url=webhook_url,
         secret_token=WEBHOOK_SECRET,
         allowed_updates=["message", "callback_query"]
     )
-    logger.info(f"Webhook set to {WEBHOOK_PATH}")
+    logger.info(f"Webhook set to: {webhook_url}")
+    logger.info("King Bot started in WEBHOOK mode!")
+
+
+async def health_handler(request: web.Request):
+    """Health check endpoint for Render"""
+    return web.json_response({"status": "ok", "bot": "King Bot", "mode": "webhook"})
+
+
+async def root_handler(request: web.Request):
+    """Root endpoint"""
+    return web.json_response({
+        "bot": "King Bot",
+        "status": "running",
+        "mode": "webhook"
+    })
 
 
 def create_app() -> web.Application:
-    """Create aiohttp application for webhook mode"""
+    """Create aiohttp application with aiogram webhook integration"""
     app = web.Application()
+    
+    # Health check routes
+    app.router.add_get("/", root_handler)
     app.router.add_get("/api/health", health_handler)
-    app.router.add_post(WEBHOOK_PATH, webhook_handler)
-    app.on_startup.append(lambda app: bot.set_webhook(
-        url=f"https://king-bot.onrender.com{WEBHOOK_PATH}",
+    
+    # Register startup handler
+    app.on_startup.append(on_startup)
+    
+    # Setup aiogram webhook handler
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
         secret_token=WEBHOOK_SECRET,
-        allowed_updates=["message", "callback_query"]
-    ))
+    )
+    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
+    
+    # Alternative: setup_application method
+    # setup_application(app, dp, bot=bot)
+    
     return app
 
 
 async def main():
-    """Main entry - use polling for simplicity on free tier"""
-    dp.startup.register(on_startup)
-
-    # Delete any existing webhook first
-    await bot.delete_webhook(drop_pending_updates=True)
-
-    # Start polling (more reliable on free tier)
-    logger.info("Starting King Bot in polling mode...")
-    await dp.start_polling(bot, allowed_updates=["message", "callback_query"])
+    """Main entry - webhook mode for Render Web Service"""
+    app = create_app()
+    
+    # Run the aiohttp web server
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    port = int(SERVER_PORT) if isinstance(SERVER_PORT, str) else SERVER_PORT
+    site = web.TCPSite(runner, host=SERVER_HOST, port=port)
+    
+    logger.info(f"Starting web server on {SERVER_HOST}:{port}")
+    await site.start()
+    
+    # Keep running forever
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
