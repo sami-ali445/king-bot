@@ -109,6 +109,9 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
     """)
 
+    # Clean old branding from settings table
+    conn.execute("DELETE FROM settings WHERE value LIKE '%جولدن%' OR value LIKE '%Golden%' OR value LIKE '%golden%' OR value LIKE '%Grid%'")
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('bot_name', 'كينغ بوت �')")
     conn.commit()
     conn.close()
     print("[DB] Initialized OK")
