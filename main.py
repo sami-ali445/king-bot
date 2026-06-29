@@ -1,20 +1,19 @@
 """
 King Bot - Main Entry Point
 Webhook mode for Render Web Service (free tier)
-Runs an aiohttp server that handles both Telegram webhooks and health checks.
 """
 
 import logging
-import asyncio
 import os
+import json
 from aiohttp import web
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from aiogram.webhook.aiohttp import SimpleRequestHandler
+from aiogram.types import Update
 
-from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_SECRET, SERVER_HOST, SERVER_PORT
+from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_SECRET, ADMIN_IDS, SERVER_HOST, SERVER_PORT
 from handlers.user import router as user_router
 from handlers.admin import router as admin_router
 from models import init_db
@@ -36,31 +35,49 @@ dp.include_router(user_router)
 dp.include_router(admin_router)
 
 
-# ── Web Handlers ──────────────────────────────────────────────────
+# ── Handlers ──────────────────────────────────────────────────────
 async def health(request: web.Request) -> web.Response:
     return web.json_response({"status": "ok", "bot": "King Bot"})
+
+
+async def telegram_webhook(request: web.Request) -> web.Response:
+    """Handle incoming Telegram updates via webhook."""
+    # Verify secret token
+    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+    if secret != WEBHOOK_SECRET:
+        logger.warning("Webhook: invalid secret token received")
+        return web.Response(status=403)
+
+    try:
+        body = await request.read()
+        json_data = json.loads(body)
+        update = Update(**json_data)
+        await dp.feed_webhook_update(bot, update)
+    except Exception as e:
+        logger.error(f"Webhook processing error: {e}")
+        # Still return 200 to prevent Telegram retries
+    return web.Response(status=200)
 
 
 # ── Startup ───────────────────────────────────────────────────────
 async def on_startup(app: web.Application) -> None:
     """Init DB + set Telegram webhook."""
-    # 1. Initialize database
+    # 1. Initialize database (/tmp/bot.db on Render)
     logger.info("on_startup – initialising DB …")
     try:
         init_db()
         logger.info("on_startup – DB initialised OK")
     except Exception as e:
         logger.error(f"on_startup – DB init error: {e}")
-        # Don't crash — let the server run even if DB has issues
-    
-    # 3. Set Telegram webhook
+
+    # 2. Set Telegram webhook
     render_url = os.getenv("RENDER_EXTERNAL_URL", "")
     if render_url:
         public_url = f"{render_url}{WEBHOOK_PATH}"
     else:
         port = int(SERVER_PORT) if isinstance(SERVER_PORT, str) else SERVER_PORT
         public_url = f"http://localhost:{port}{WEBHOOK_PATH}"
-    
+
     logger.info("on_startup – setting webhook to %s", public_url)
     try:
         await bot.delete_webhook(drop_pending_updates=True)
@@ -72,7 +89,6 @@ async def on_startup(app: web.Application) -> None:
         logger.info("on_startup – webhook set OK ✅")
     except Exception as e:
         logger.error(f"on_startup – webhook error: {e}")
-        # Don't crash — server will still run for health checks
 
 
 async def on_shutdown(app: web.Application) -> None:
@@ -88,16 +104,12 @@ def create_app() -> web.Application:
     """Build the aiohttp application."""
     app = web.Application()
 
-    # Plain routes
+    # Health check routes
     app.router.add_get("/", health)
     app.router.add_get("/api/health", health)
 
-    # aiogram webhook handler (handles POST on WEBHOOK_PATH)
-    SimpleRequestHandler(
-        dispatcher=dp,
-        bot=bot,
-        secret_token=WEBHOOK_SECRET,
-    ).register(app, path=WEBHOOK_PATH)
+    # Telegram webhook endpoint
+    app.router.add_post(WEBHOOK_PATH, telegram_webhook)
 
     # Lifecycle
     app.on_startup.append(on_startup)
