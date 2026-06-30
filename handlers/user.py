@@ -392,11 +392,11 @@ async def profile_handler(message: Message):
         )
     except Exception as e:
         await message.answer(
-            f"� مرحباً بك في كينغ بوت\n\n"
-            f"👤 الاسم: {user_name}\n"
-            f"� المعرف: {user_id}\n"
-            f"💰 الرصيد: $0.00\n"
-            f"� النقاط: 0"
+            "👑 مرحباً بك في كينغ بوت\n\n"
+            f"👤 الاسم: {message.from_user.full_name}\n"
+            f"🆔 المعرف: {message.from_user.id}\n"
+            "💰 الرصيد: $0.00\n"
+            "🚀 النقاط: 0"
         )
 
 # ========== Contact ==========
