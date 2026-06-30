@@ -11,6 +11,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
 from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_SECRET, SERVER_HOST, SERVER_PORT
+from middleware.subscription import SubscriptionMiddleware
 from handlers.user import router as user_router
 from handlers.admin import router as admin_router
 from models import init_db
@@ -27,6 +28,14 @@ logger = logging.getLogger(__name__)
 # === Bot / Dispatcher ===
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
+
+# === Subscription Middleware ===
+# Registered globally — runs before every message and callback
+# Checks channel membership, blocks non-subscribers with a prompt
+sub_middleware = SubscriptionMiddleware()
+dp.message.middleware(sub_middleware)
+dp.callback_query.middleware(sub_middleware)
+
 dp.include_router(user_router)
 dp.include_router(admin_router)
 

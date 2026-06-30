@@ -20,7 +20,7 @@ def main_menu():
             ],
             [
                 KeyboardButton(text="💰 شحن الرصيد"),
-                KeyboardButton(text="� حسابي"),
+                KeyboardButton(text="👤 حسابي"),
             ],
             [
                 KeyboardButton(text="📢 قناة البوت"),
