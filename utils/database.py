@@ -20,9 +20,13 @@ def register_user(user_id: int, username: str, full_name: str) -> bool:
     conn = get_db()
     existing = conn.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if not existing:
+        clean_name = full_name
+        for bad in ["جولدن جريد", "جولدن", "جريد", "Golden Grid", "Golden", "golden"]:
+            clean_name = clean_name.replace(bad, "—")
+        username = username or "—"
         conn.execute(
             "INSERT INTO users (user_id, username, full_name) VALUES (?, ?, ?)",
-            (user_id, username, full_name)
+            (user_id, username, strip_non_arabic(clean_name) if False else clean_name.strip() or "—", )
         )
         conn.commit()
         conn.close()

@@ -371,6 +371,9 @@ async def process_deposit(message: Message, state: FSMContext):
 async def profile_handler(message: Message):
     user_id = message.from_user.id
     user_name = message.from_user.full_name or "—"
+    for bad in ["جولدن جريد", "جولدن", "جريد", "Golden Grid", "Golden", "golden"]:
+        user_name = user_name.replace(bad, "—")
+    user_name = user_name.strip() or "—"
 
     try:
         register_user(user_id, message.from_user.username or "", user_name)
