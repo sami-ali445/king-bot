@@ -386,17 +386,19 @@ async def profile_handler(message: Message):
             points = 0
             balance = 0.0
 
+        display_name = user_name.replace("!", "").replace("⚠️", "").replace("🚨", "").strip() or "—"
         await message.answer(
             f"👑 مرحباً بك في كينغ بوت\n\n"
-            f"� الا�م: {user_name}\n"
+            f"👤 👑 الملك {display_name}\n"
             f"🆔 المعرف: {user_id}\n"
             f"💰 الرصيد: ${balance:.2f}\n"
             f"🚀 النقاط: {points}"
         )
     except Exception as e:
+        display_name = (message.from_user.full_name or "—").replace("!", "").replace("⚠️", "").replace("🚨", "").strip() or "—"
         await message.answer(
             "👑 مرحباً بك في كينغ بوت\n\n"
-            f"👤 الاسم: {message.from_user.full_name}\n"
+            f"👤 👑 الملك {display_name}\n"
             f"🆔 المعرف: {message.from_user.id}\n"
             "💰 الرصيد: $0.00\n"
             "🚀 النقاط: 0"
