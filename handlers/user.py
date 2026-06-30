@@ -172,7 +172,7 @@ async def my_numbers_handler(callback: CallbackQuery):
 
 
 # ========== Boost Section ==========
-@router.message(F.text.endswith("رشق وتفا�ل"))
+@router.message(F.text.endswith("رشق وتفاعل"))
 async def boost_main(message: Message):
     points = get_points(message.from_user.id)
     await message.answer(
