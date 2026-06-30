@@ -87,11 +87,11 @@ def my_numbers_kb(numbers: list):
 def boost_menu():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="� اكسب نقاط (مجاني)", callback_data="earn_points")],
-            [InlineKeyboardButton(text="👥 رشق متابعين (-10 نقاط)", callback_data="boost_followers")],
-            [InlineKeyboardButton(text="❤️ رشق إعجابات (-5 نقاط)", callback_data="boost_likes")],
-            [InlineKeyboardButton(text="� رشق مشاهدات (-3 نقاط)", callback_data="boost_views")],
-            [InlineKeyboardButton(text="📋 طلباتي", callback_data="my_boosts")],
+            [InlineKeyboardButton(text="🎯 اكسب نقاط (مجاني)", callback_data="earn_points")],
+            [InlineKeyboardButton(text="👥 رشق متابعين (مجاني)", callback_data="boost_followers")],
+            [InlineKeyboardButton(text="❤️ رشق إعجابات (مجاني)", callback_data="boost_likes")],
+            [InlineKeyboardButton(text="👁 رشق مشاهدات (مجاني)", callback_data="boost_views")],
+            [InlineKeyboardButton(text="💎 رابط الدعوة", callback_data="my_boosts")],
             [InlineKeyboardButton(text="🔙 رجوع", callback_data="back_main")],
         ]
     )

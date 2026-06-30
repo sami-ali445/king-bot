@@ -4,7 +4,6 @@ Direct DB calls - no HTTP self-calls
 """
 
 import sqlite3
-from datetime import datetime, timedelta
 from config import DB_PATH
 
 
@@ -20,13 +19,13 @@ def register_user(user_id: int, username: str, full_name: str) -> bool:
     conn = get_db()
     existing = conn.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if not existing:
-        clean_name = full_name
+        clean_name = full_name or "—"
         for bad in ["جولدن جريد", "جولدن", "جريد", "Golden Grid", "Golden", "golden"]:
             clean_name = clean_name.replace(bad, "—")
         username = username or "—"
         conn.execute(
             "INSERT INTO users (user_id, username, full_name) VALUES (?, ?, ?)",
-            (user_id, username, strip_non_arabic(clean_name) if False else clean_name.strip() or "—", )
+            (user_id, username, clean_name.strip() or "—", )
         )
         conn.commit()
         conn.close()
@@ -61,6 +60,47 @@ def ban_user(user_id: int, banned: bool = True):
     conn.execute("UPDATE users SET is_banned = ? WHERE user_id = ?", (1 if banned else 0, user_id))
     conn.commit()
     conn.close()
+
+
+# ========== Referrals ==========
+def set_referrer(user_id: int, referrer_id: int, award_points: int = 10) -> bool:
+    """Register a referral. user_id was invited by referrer_id.
+    Awards `award_points` to referrer. Idempotent."""
+    conn = get_db()
+    # 1. Verify user exists and has no prior referrer
+    row = conn.execute("SELECT referrer_id FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    if not row:
+        conn.close()
+        return False
+    if row["referrer_id"] is not None:
+        conn.close()
+        return False
+    # 2. Prevent self-referral
+    if referrer_id == user_id:
+        conn.close()
+        return False
+    # 3. Verify referrer exists
+    ref = conn.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,)).fetchone()
+    if not ref:
+        conn.close()
+        return False
+    # 4. Save + award
+    conn.execute("UPDATE users SET referrer_id = ? WHERE user_id = ?", (referrer_id, user_id))
+    conn.execute("UPDATE users SET points = points + ? WHERE user_id = ?", (award_points, referrer_id))
+    conn.execute(
+        "INSERT INTO referrals (referrer_id, referred_id, points_awarded) VALUES (?, ?, ?)",
+        (referrer_id, user_id, award_points),
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def get_referral_count(user_id: int) -> int:
+    conn = get_db()
+    row = conn.execute("SELECT COUNT(*) as cnt FROM referrals WHERE referrer_id = ?", (user_id,)).fetchone()
+    conn.close()
+    return row["cnt"] if row else 0
 
 
 # ========== Points & Balance ==========
@@ -190,13 +230,12 @@ def get_pending_tasks() -> list:
     return [dict(r) for r in rows]
 
 
-# ========== Boosts (Spend Points) ==========
-def create_boost(user_id: int, boost_type: str, target: str, quantity: int, points_cost: int) -> int:
+# ========== Boosts (Free!) ==========
+def create_boost(user_id: int, boost_type: str, target: str) -> int:
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO boosts (user_id, boost_type, target, quantity, points_cost, status) "
-        "VALUES (?, ?, ?, ?, ?, 'pending')",
-        (user_id, boost_type, target, quantity, points_cost)
+        "INSERT INTO boosts (user_id, boost_type, target, quantity, status) VALUES (?, ?, ?, 1, 'pending')",
+        (user_id, boost_type, target)
     )
     conn.commit()
     boost_id = cur.lastrowid
@@ -281,6 +320,15 @@ def save_broadcast(admin_id: int, message: str, recipients_count: int) -> int:
     return broadcast_id
 
 
+# ========== Referral Link ==========
+def user_exists(user_id: int) -> bool:
+    """Check if user is registered. Used to validate referrer IDs."""
+    conn = get_db()
+    row = conn.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    conn.close()
+    return row is not None
+
+
 # ========== Stats ==========
 def get_stats() -> dict:
     conn = get_db()
@@ -297,5 +345,5 @@ def get_stats() -> dict:
         "pending_tasks": pending_tasks,
         "pending_boosts": pending_boosts,
         "pending_orders": pending_orders,
-        "total_deposits": total_deposits
+        "total_deposits": total_deposits,
     }

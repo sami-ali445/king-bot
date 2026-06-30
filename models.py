@@ -32,6 +32,16 @@ def init_db():
             is_banned INTEGER DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS referrals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            referrer_id INTEGER NOT NULL,
+            referred_id INTEGER NOT NULL UNIQUE,
+            points_awarded INTEGER DEFAULT 10,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (referrer_id) REFERENCES users(user_id),
+            FOREIGN KEY (referred_id) REFERENCES users(user_id)
+        );
+
         CREATE TABLE IF NOT EXISTS virtual_numbers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,

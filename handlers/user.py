@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from config import ADMIN_IDS, DEVELOPER_USERNAME, WALLET_ADDRESS, WALLET_NETWORK, WALLET_COIN
+from config import ADMIN_IDS, DEVELOPER_USERNAME, WALLET_ADDRESS, WALLET_NETWORK, WALLET_COIN, CHANNEL_USERNAME, CHANNEL_INVITE_LINK
 from keyboards.inline import (
     main_menu, numbers_menu, countries_menu, number_actions_kb,
     my_numbers_kb, boost_menu, earn_points_menu, balance_menu, contact_menu
@@ -18,7 +18,8 @@ from utils.fivesim import COUNTRIES, get_balance as get_5sim_balance, buy_number
 from utils.database import (
     register_user, add_points, deduct_points, get_points, get_balance, add_balance,
     save_number, update_number_sms, cancel_number as db_cancel_number, get_user_numbers,
-    get_active_number_by_order, create_task, create_boost, get_all_users, get_user_count
+    get_active_number_by_order, create_task, create_boost, get_all_users, get_user_count,
+    set_referrer, get_referral_count, user_exists
 )
 
 router = Router()
@@ -36,16 +37,47 @@ class States(StatesGroup):
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     user_id = message.from_user.id
-    register_user(user_id, message.from_user.username or "", message.from_user.full_name or "")
 
+    # --- Referral handling ---
+    # Telegram sends /start=ref_ID in message.text
+    referrer_id = None
+    if message.text and len(message.text) > 6:
+        raw = message.text[6:].strip()
+        if raw.startswith("ref_"):
+            try:
+                ref_candidate = int(raw[4:])
+                if ref_candidate != user_id:
+                    referrer_id = ref_candidate
+            except ValueError:
+                pass
+
+    is_new = register_user(user_id, message.from_user.username or "", message.from_user.full_name or "")
+
+    # Award referral if new user + referrer is valid
+    if is_new and referrer_id:
+        success = set_referrer(user_id, referrer_id, 10)
+        if success:
+            try:
+                await message.bot.send_message(
+                    referrer_id,
+                    f"🎉 <b>تم تسجيل صديقك عبر رابطك!</b>\n\n"
+                    f"✅ حصلت على 10 نقاط مجانية\n"
+                    f"📥 إجمالي نقاطك: {get_points(referrer_id)} نقطة",
+                )
+            except Exception:
+                pass
+
+    invite_link = CHANNEL_INVITE_LINK
     welcome = (
         f"👑 <b>مرحباً بك في بوت الملك!</b>\n\n"
         f"🤖 بوت خدمات السوشيال ميديا والأرقام الوهمية\n\n"
         f"📱 <b>أرقام وهمية:</b> 3 فئات سعرية\n"
-        f"👥 <b>رشق وتفاعل:</b> اكسب نقاط مجاناً وارشق قناتك\n"
+        f"👥 <b>رشق وتفاعل:</b> رشق مجاني! متابعين + لايكات + مشاهدات\n"
+        f"💎 <b>نظام الدعوات:</b> اكسب 10 نقاط عن كل صديق تدعوه\n"
         f"💰 <b>شحن الرصيد:</b> USDT عبر محفظتك\n\n"
         f"🎯 <b>نقاطك:</b> {get_points(user_id)} نقطة\n"
         f"💰 <b>رصيدك:</b> ${get_balance(user_id):.2f}\n\n"
+        f"📢 القناة الرسمية: {invite_link}\n"
         f"⬇️ اختر من القائمة:"
     )
     await message.answer(welcome, reply_markup=main_menu())
@@ -238,48 +270,39 @@ async def process_task_link(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "boost_followers")
 async def boost_followers_handler(callback: CallbackQuery, state: FSMContext):
-    cost = 10
-    if not deduct_points(callback.from_user.id, cost):
-        await callback.answer("❌ نقاطك غير كافية! تحتاج 10 نقاط", show_alert=True)
-        return
     await state.update_data(boost_type="followers")
     await callback.message.edit_text(
-        f"👥 <b>رشق متابعين</b>\n"
-        f"💰 التكلفة: 10 نقاط\n\n"
-        f"أرسل يوزر القناة (بدون @):\n"
-        f"مثال: my_channel"
+        "👥 <b>رشق متابعين مجاني!</b>\n\n"
+        "🎁 الخدمة مجانية 100%\n\n"
+        f"⚠️ بشرط الاشتراك في القناة الرسمية:\n📢 {CHANNEL_INVITE_LINK}\n\n"
+        "أرسل يوزر القناة (بدون @):\n"
+        "مثال: my_channel"
     )
     await state.set_state(States.waiting_boost_target)
 
 
 @router.callback_query(F.data == "boost_likes")
 async def boost_likes_handler(callback: CallbackQuery, state: FSMContext):
-    cost = 5
-    if not deduct_points(callback.from_user.id, cost):
-        await callback.answer("❌ نقاطك غير كافية! تحتاج 5 نقاط", show_alert=True)
-        return
     await state.update_data(boost_type="likes")
     await callback.message.edit_text(
-        f"❤️ <b>رشق إعجابات</b>\n"
-        f"💰 التكلفة: 5 نقاط\n\n"
-        f"أرسل رابط المنشور:\n"
-        f"مثال: https://t.me/channel/123456"
+        "❤️ <b>رشق إعجابات مجاني!</b>\n\n"
+        "🎁 الخدمة مجانية 100%\n\n"
+        f"⚠️ بشرط الاشتراك في القناة الرسمية:\n📢 {CHANNEL_INVITE_LINK}\n\n"
+        "أرسل رابط المنشور:\n"
+        "مثال: https://t.me/channel/123456"
     )
     await state.set_state(States.waiting_boost_target)
 
 
 @router.callback_query(F.data == "boost_views")
 async def boost_views_handler(callback: CallbackQuery, state: FSMContext):
-    cost = 3
-    if not deduct_points(callback.from_user.id, cost):
-        await callback.answer("❌ نقاطك غير كافية! تحتاج 3 نقاط", show_alert=True)
-        return
     await state.update_data(boost_type="views")
     await callback.message.edit_text(
-        f"👁 <b>رشق مشاهدات</b>\n"
-        f"💰 التكلفة: 3 نقاط\n\n"
-        f"أرسل رابط المنشور:\n"
-        f"مثال: https://t.me/channel/123456"
+        "👁 <b>رشق مشاهدات مجاني!</b>\n\n"
+        "🎁 الخدمة مجانية 100%\n\n"
+        f"⚠️ بشرط الاشتراك في القناة الرسمية:\n📢 {CHANNEL_INVITE_LINK}\n\n"
+        "أرسل رابط المنشور:\n"
+        "مثال: https://t.me/channel/123456"
     )
     await state.set_state(States.waiting_boost_target)
 
@@ -290,14 +313,21 @@ async def process_boost_target(message: Message, state: FSMContext):
     boost_type = data["boost_type"]
     target = message.text.strip()
 
-    boost_id = create_boost(message.from_user.id, boost_type, target, 1, 0)
+    boost_id = create_boost(message.from_user.id, boost_type, target)
     await state.clear()
+
+    label_map = {"followers": "متابعين", "likes": "إعجابات", "views": "مشاهدات"}
+    label = label_map.get(boost_type, boost_type)
+
     await message.answer(
-        f"✅ <b>تم إنشاء طلب الرشق!</b>\n\n"
-        f"📋 النوع: {boost_type}\n"
-        f"🎯 الهدف: {target}\n"
-        f"💰 التكلفة: {0} نقطة\n\n"
-        f"⏳ جاري التنفيذ... سيصلك إشعار عند الانتهاء"
+        f"🎉 <b>تم استلام طلب الرشق بنجاح!</b>\n\n"
+        f"📋 النوع: رشق {label}\n"
+        f"🎯 الهدف: <code>{target}</code>\n"
+        f"💰 التكلفة: مجاناً ✅\n"
+        f"📋 رقم الطلب: #{boost_id}\n\n"
+        "⏳ طلبك قيد التنفيذ...\n"
+        f"📢 تأكد من اشتراكك في القناة: {CHANNEL_INVITE_LINK}\n\n"
+        "🚀 سيصلك إشعار فور الانتهاء!"
     )
 
 
@@ -387,21 +417,43 @@ async def profile_handler(message: Message):
             balance = 0.0
 
         display_name = user_name.replace("!", "").replace("⚠️", "").replace("🚨", "").strip() or "—"
+        ref_count = get_referral_count(user_id)
+        bot_info = await message.bot.get_me()
+        bot_username = bot_info.username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
         await message.answer(
             f"👑 مرحباً بك في كينغ بوت\n\n"
             f"👤 الملك {display_name}\n"
             f"🆔 المعرف: {user_id}\n"
             f"💰 الرصيد: ${balance:.2f}\n"
-            f"🚀 النقاط: {points}"
+            f"🚀 نقاطك: {points} نقطة\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💎 <b>نظام الدعوات</b>\n"
+            f"📥 عدد دعواتك: <b>{ref_count}</b> شخص\n"
+            f"🏆 مكافأة كل دعوة: <b>10 نقاط</b>\n\n"
+            f"📎 <b>رابط الدعوة الخاص بك:</b>\n"
+            f"<code>{ref_link}</code>\n\n"
+            f"🔄 شارك الرابط واصنع نقاط مجانية!\n"
+            f"📢 القناة الرسمية: {CHANNEL_INVITE_LINK}"
         )
     except Exception as e:
         display_name = (message.from_user.full_name or "—").replace("!", "").replace("⚠️", "").replace("🚨", "").strip() or "—"
+        bot_info = await message.bot.get_me()
+        bot_username = bot_info.username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
         await message.answer(
             "👑 مرحباً بك في كينغ بوت\n\n"
             f"👤 الملك {display_name}\n"
             f"🆔 المعرف: {message.from_user.id}\n"
-            "💰 الرصيد: $0.00\n"
-            "🚀 النقاط: 0"
+            f"💰 الرصيد: $0.00\n"
+            f"🚀 نقاطك: 0 نقطة\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💎 <b>نظام الدعوات</b>\n"
+            f"🏆 مكافأة كل دعوة: <b>10 نقاط</b>\n\n"
+            f"📎 <b>رابط الدعوة الخاص بك:</b>\n"
+            f"<code>{ref_link}</code>\n\n"
+            f"🔄 شارك الرابط واصنع نقاط مجانية!\n"
+            f"📢 القناة الرسمية: {CHANNEL_INVITE_LINK}"
         )
 
 # ========== Contact ==========
@@ -452,4 +504,25 @@ async def back_boost(callback: CallbackQuery):
         f"👥 <b>قسم الرشق والتفاعل</b>\n\n"
         f"🎯 نقاطك: {points} نقطة",
         reply_markup=boost_menu()
+    )
+
+
+@router.callback_query(F.data == "my_boosts")
+async def my_boosts_handler(callback: CallbackQuery):
+    """Show user's referral link and stats."""
+    user_id = callback.from_user.id
+    ref_count = get_referral_count(user_id)
+    points = get_points(user_id)
+    bot_info = await callback.bot.get_me()
+    bot_username = bot_info.username
+    ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+    await callback.message.edit_text(
+        f"💎 <b>رابط الدعوة الخاص بك</b>\n\n"
+        f"📎 الرابط:\n<code>{ref_link}</code>\n\n"
+        f"📊 عدد دعواتك: <b>{ref_count}</b> شخص\n"
+        f"🏆 نقاطك الحالية: <b>{points}</b> نقطة\n"
+        f"💰 المكافأة: <b>10 نقاط</b> عن كل دعوة\n\n"
+        f"🔄 شارك الرابط مع أصدقائك!\n"
+        f"📢 القناة الرسمية: {CHANNEL_INVITE_LINK}",
+        reply_markup=boost_menu(),
     )
