@@ -44,8 +44,10 @@ class SubscriptionMiddleware(BaseMiddleware):
         if user_id in ADMIN_IDS:
             return await handler(event, data)
 
-        # Skip check for /start command (always allow entry)
+        # Skip check for /start command - always show main menu even if not subscribed
         if event.message and event.message.text and event.message.text.startswith("/start"):
+            # Allow entry and send main menu response
+            # We'll handle this in the cmd_start handler, just bypass middleware check
             return await handler(event, data)
 
         # Skip if channel not configured
